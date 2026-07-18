@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SKYLINE — Weather Lookup</title>
+<style>
+  :root{
+    --bg: #0a0c11;
+    --panel: #12161f;
+    --panel-2: #171c27;
+    --line: #232a38;
+    --text: #eef1f6;
+    --sub: #8892a3;
+    --accent: #f5871f;
+    --accent-soft: rgba(245,135,31,0.14);
+    --cold: #4fa8d8;
+    --font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
+    --font-body: 'Inter', 'Segoe UI', sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+  }
+
+  /* ===== BRAND BAR ===== */
+  .brandbar{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    padding: 22px 40px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    background: rgba(10,12,17,0.85);
+    backdrop-filter: blur(10px);
+    z-index: 20;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+  }
+  .brand .mark{
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    background: linear-gradient(140deg, var(--accent), #c9601a);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: #1a1204;
+    font-size: 17px;
+  }
+  .brand .word{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+  }
+  .brand .tag{
+    font-size: 11px;
+    color: var(--sub);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .live-clock{
+    text-align:right;
+    font-family: var(--font-display);
+  }
+  .live-clock .time{ font-size: 16px; font-weight: 600; }
+  .live-clock .date{ font-size: 11px; color: var(--sub); font-family: var(--font-body); }
+
+  /* ===== SLIDE 1 — HERO / SEARCH ===== */
+  .slide{
+    padding: 60px 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .hero-slide{
+    position: relative;
+    border-radius: 22px;
+    overflow: hidden;
+    min-height: 420px;
+    margin: 40px auto 0;
+    max-width: 900px;
+    border: 1px solid var(--line);
+    display:flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: linear-gradient(160deg, var(--panel-2), var(--panel));
+  }
+  .hero-bg{
+    position:absolute; inset:0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity .6s ease;
+    filter: saturate(0.9) brightness(0.55);
+  }
+  .hero-bg.loaded{ opacity: 1; }
+  .hero-overlay{
+    position:absolute; inset:0;
+    background: linear-gradient(180deg, rgba(10,12,17,0.15) 0%, rgba(10,12,17,0.55) 55%, rgba(10,12,17,0.92) 100%);
+  }
+  .hero-content{
+    position: relative;
+    padding: 34px 36px 32px;
+    z-index: 2;
+  }
+
+  .eyebrow{
+    font-family: var(--font-display);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--accent);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  h1.title{
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .subtitle{
+    color: var(--sub);
+    font-size: 15px;
+    margin-bottom: 26px;
+  }
+
+  .search{
+    display:flex;
+    gap:10px;
+    max-width: 480px;
+  }
+  .search input{
+    flex:1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: var(--text);
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: var(--font-body);
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  .search input::placeholder{ color: var(--sub); }
+  .search input:focus{ border-color: var(--accent); }
+  .search button{
+    background: var(--accent);
+    color: #1a1204;
+    border: none;
+    font-family: var(--font-display);
+    font-weight: 700;
+    padding: 0 24px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: transform .1s ease, background .15s ease;
+  }
+  .search button:hover{ background: #ff9633; }
+  .search button:active{ transform: scale(0.97); }
+
+  .status{
+    color: var(--sub);
+    font-size: 13px;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+  .status.error{ color: #e5646b; }
+
+  .hero-readout{
+    display:flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 28px;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .place-block .place{
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .place-block .meta{
+    font-size: 13px;
+    color: var(--sub);
+    margin-top: 3px;
+    display:flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .place-block .meta span{ display:flex; align-items:center; gap:5px; }
+
+  .temp-now{
+    font-family: var(--font-display);
+    font-size: 72px;
+    font-weight: 700;
+    line-height: 1;
+    text-align: right;
+  }
+  .temp-now sup{ font-size: 28px; color: var(--sub); font-weight: 500; }
+  .cond{ text-align:right; color: var(--sub); font-size: 14px; margin-top: 4px; }
+
+  /* ===== SLIDE 2 — DETAIL STATS ===== */
+  .section-header{
+    display:flex;
+    align-items:baseline;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .section-title{
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .section-num{
+    font-family: var(--font-display);
+    font-size: 12px;
+    color: var(--sub);
+    letter-spacing: 0.1em;
+  }
+
+  .track-wrap{ margin-bottom: 28px; }
+  .track-labels{ display:flex; justify-content: space-between; font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+  .track{
+    position: relative;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--cold), var(--accent));
+  }
+  .track .marker{
+    position:absolute;
+    top: -6px;
+    width: 2px;
+    height: 20px;
+    background: #fff;
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(255,255,255,0.6);
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  .stat{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 18px;
+  }
+  .stat .k{ font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--sub); }
+  .stat .v{ font-family: var(--font-display); font-size: 24px; margin-top: 6px; font-weight: 600; }
+
+  /* ===== SLIDE 3 — FORECAST ===== */
+  .hourly{
+    display:flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 30px;
+  }
+  .hour-card{
+    flex: 0 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    text-align:center;
+    min-width: 70px;
+  }
+  .hour-card .t{ font-size: 12px; color: var(--sub); }
+  .hour-card .v{ font-family: var(--font-display); font-size: 19px; margin-top: 8px; font-weight: 600; }
+
+  .days{
+    display:flex;
+    flex-direction: column;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .day-row{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .day-row:last-child{ border-bottom: none; }
+  .day-row .name{ font-family: var(--font-display); font-size: 15px; width: 90px; font-weight: 600; }
+  .day-row .cond{ text-align: left; color: var(--sub); font-size: 14px; margin-top:0; }
+  .day-row .range{ color: var(--sub); font-size: 14px; }
+  .day-row .range b{ color: var(--text); }
+
+  .placeholder{
+    text-align:center;
+    color: var(--sub);
+    font-size: 14px;
+    padding: 60px 20px;
+    border: 1px dashed var(--line);
+    border-radius: 16px;
+  }
+
+  /* ===== FOOTER / CREDIT ===== */
+  footer{
+    text-align:center;
+    padding: 40px 20px 50px;
+    border-top: 1px solid var(--line);
+    margin-top: 20px;
+  }
+  .credit{
+    font-family: var(--font-display);
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .credit .dot{ color: var(--sub); margin: 0 8px; font-weight: 400; }
+  .credit .role{ color: var(--sub); font-weight: 400; }
+  .source-note{
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--sub);
+  }
+  .source-note a{ color: var(--accent); text-decoration:none; }
+
+  @media (max-width: 640px){
+    .brandbar{ padding: 16px 20px; }
+    .slide{ padding: 30px 18px; }
+    .hero-content{ padding: 24px 22px 26px; }
+    .grid{ grid-template-columns: repeat(2, 1fr); }
+    .temp-now{ font-size: 52px; }
+    h1.title{ font-size: 30px; }
+    .hero-readout{ flex-direction: column; align-items: flex-start; }
+    .temp-now, .cond{ text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="brandbar">
+    <div class="brand">
+      <div class="mark">S</div>
+      <div>
+        <div class="word">SKYLINE</div>
+        <div class="tag">Weather Intelligence</div>
+      </div>
+    </div>
+    <div class="live-clock">
+      <div class="time" id="clockTime">--:--</div>
+      <div class="date" id="clockDate">—</div>
+    </div>
+  </div>
+
+  <!-- SLIDE 1: HERO + SEARCH -->
+  <div class="slide" style="padding-bottom:0;">
+    <div class="eyebrow">01 · API Integration Project</div>
+    <h1 class="title">Look up weather, anywhere.</h1>
+    <div class="subtitle">Live conditions, hourly outlook, and a 5-day forecast — powered by a live weather API.</div>
+  </div>
+
+  <div class="hero-slide">
+    <div class="hero-bg" id="heroBg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="search">
+        <input id="cityInput" type="text" placeholder="Search a city, e.g. Vijayawada" autocomplete="off">
+        <button id="searchBtn">Search</button>
+      </div>
+      <div class="status" id="status">Type a city name and hit search.</div>
+
+      <div class="hero-readout" id="heroReadout" style="display:none;">
+        <div class="place-block">
+          <div class="place" id="placeName">—</div>
+          <div class="meta">
+            <span id="placeCountry"></span>
+            <span id="localTime"></span>
+          </div>
+        </div>
+        <div>
+          <div class="temp-now" id="tempNow">--<sup>°C</sup></div>
+          <div class="cond" id="condNow">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: DETAIL STATS -->
+  <div class="slide" id="statsSlide" style="display:none;">
+    <div class="section-header">
+      <div class="section-title">Current Conditions</div>
+      <div class="section-num">02 / 03</div>
+    </div>
+
+    <div class="track-wrap">
+      <div class="track-labels">
+        <span id="minLabel">min --°</span>
+        <span id="maxLabel">max --°</span>
+      </div>
+      <div class="track">
+        <div class="marker" id="marker" style="left:50%"></div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="stat"><div class="k">Feels like</div><div class="v" id="feelsLike">--°</div></div>
+      <div class="stat"><div class="k">Wind</div><div class="v" id="wind">-- km/h</div></div>
+      <div class="stat"><div class="k">Humidity</div><div class="v" id="humidity">--%</div></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3: FORECAST -->
+  <div class="slide" id="forecastSlide" style="display:none;">
+    <div class="section-header">
+      <div class="section-title">Forecast</div>
+      <div class="section-num">03 / 03</div>
+    </div>
+
+    <div class="hourly" id="hourly"></div>
+    <div class="days" id="days"></div>
+  </div>
+
+  <div class="slide" id="emptyState">
+    <div class="placeholder">Search a city above to see current conditions and the 5-day forecast.</div>
+  </div>
+
+  <footer>
+    <div class="credit">Designed &amp; built by Bandaru Thanisha<span class="dot">·</span><span class="role">AI &amp; DS, LBRCE</span><span class="dot">·</span><span class="role">Vijayawada, AP</span></div>
+    <div class="source-note">Weather data from <a href="https://open-meteo.com" target="_blank">Open-Meteo</a> · Imagery from Unsplash — both free, no API key required.</div>
+  </footer>
+
+<script>
+const statusEl = document.getElementById('status');
+const heroReadout = document.getElementById('heroReadout');
+const statsSlide = document.getElementById('statsSlide');
+const forecastSlide = document.getElementById('forecastSlide');
+const emptyState = document.getElementById('emptyState');
+const heroBg = document.getElementById('heroBg');
+
+let cityOffsetSeconds = 0;
+let clockTimer = null;
+
+const WEATHER_CODES = {
+  0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',
+  45:'Fog',48:'Depositing fog',
+  51:'Light drizzle',53:'Drizzle',55:'Dense drizzle',
+  61:'Slight rain',63:'Rain',65:'Heavy rain',
+  71:'Slight snow',73:'Snow',75:'Heavy snow',
+  80:'Rain showers',81:'Rain showers',82:'Violent rain showers',
+  95:'Thunderstorm',96:'Thunderstorm w/ hail',99:'Thunderstorm w/ hail'
+};
+
+function condText(code){ return WEATHER_CODES[code] || 'Unknown'; }
+
+function formatClock(date){
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const day = date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+  return { time, day };
+}
+
+// top-right clock: viewer's own local time
+function tickHeaderClock(){
+  const { time, day } = formatClock(new Date());
+  document.getElementById('clockTime').textContent = time;
+  document.getElementById('clockDate').textContent = day;
+}
+setInterval(tickHeaderClock, 1000);
+tickHeaderClock();
+
+// searched-city local time, using the city's UTC offset returned by the API
+function tickCityClock(){
+  const nowUtcMs = Date.now();
+  const cityMs = nowUtcMs + cityOffsetSeconds * 1000;
+  const cityDate = new Date(cityMs);
+  const time = cityDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+  const day = cityDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  document.getElementById('localTime').textContent = `${day} · ${time} local`;
+}
+
+async function geocode(city){
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Geocoding request failed');
+  const data = await res.json();
+  if(!data.results || data.results.length === 0) throw new Error('City not found. Try a different spelling.');
+  return data.results[0];
+}
+
+async function getWeather(lat, lon){
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+    `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code` +
+    `&hourly=temperature_2m,weather_code` +
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code` +
+    `&timezone=auto`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Weather request failed');
+  return res.json();
+}
+
+function setHeroImage(city){
+  const img = new Image();
+  const query = encodeURIComponent(city + ' city skyline');
+  const src = `https://source.unsplash.com/1600x900/?${query}`;
+  img.onload = () => {
+    heroBg.style.backgroundImage = `url(${src})`;
+    heroBg.classList.add('loaded');
+  };
+  img.onerror = () => {
+    heroBg.classList.remove('loaded');
+  };
+  img.src = src;
+}
+
+function renderCurrent(place, weather){
+  const c = weather.current;
+  const daily = weather.daily;
+
+  document.getElementById('placeName').textContent = `${place.name}${place.admin1 ? ', ' + place.admin1 : ''}`;
+  document.getElementById('placeCountry').textContent = place.country || '';
+
+  cityOffsetSeconds = weather.utc_offset_seconds || 0;
+  tickCityClock();
+  if(clockTimer) clearInterval(clockTimer);
+  clockTimer = setInterval(tickCityClock, 1000);
+
+  document.getElementById('tempNow').innerHTML = `${Math.round(c.temperature_2m)}<sup>°C</sup>`;
+  document.getElementById('condNow').textContent = condText(c.weather_code);
+  document.getElementById('feelsLike').textContent = `${Math.round(c.apparent_temperature)}°`;
+  document.getElementById('wind').textContent = `${Math.round(c.wind_speed_10m)} km/h`;
+  document.getElementById('humidity').textContent = `${c.relative_humidity_2m}%`;
+
+  const tMin = daily.temperature_2m_min[0];
+  const tMax = daily.temperature_2m_max[0];
+  document.getElementById('minLabel').textContent = `min ${Math.round(tMin)}°`;
+  document.getElementById('maxLabel').textContent = `max ${Math.round(tMax)}°`;
+
+  let pct = ((c.temperature_2m - tMin) / (tMax - tMin || 1)) * 100;
+  pct = Math.max(2, Math.min(98, pct));
+  document.getElementById('marker').style.left = pct + '%';
+
+  heroReadout.style.display = 'flex';
+}
+
+function renderHourly(weather){
+  const hourly = weather.hourly;
+  const nowIndex = hourly.time.findIndex(t => new Date(t) >= new Date());
+  const start = nowIndex === -1 ? 0 : nowIndex;
+  const box = document.getElementById('hourly');
+  box.innerHTML = '';
+  for(let i = start; i < start + 8 && i < hourly.time.length; i++){
+    const d = new Date(hourly.time[i]);
+    const label = d.toLocaleTimeString([], { hour: 'numeric' });
+    box.innerHTML += `
+      <div class="hour-card">
+        <div class="t">${label}</div>
+        <div class="v">${Math.round(hourly.temperature_2m[i])}°</div>
+      </div>`;
+  }
+}
+
+function renderDaily(weather){
+  const daily = weather.daily;
+  const box = document.getElementById('days');
+  box.innerHTML = '';
+  for(let i = 0; i < 5 && i < daily.time.length; i++){
+    const d = new Date(daily.time[i]);
+    const name = i === 0 ? 'Today' : d.toLocaleDateString([], { weekday: 'short' });
+    box.innerHTML += `
+      <div class="day-row">
+        <div class="name">${name}</div>
+        <div class="cond">${condText(daily.weather_code[i])}</div>
+        <div class="range"><b>${Math.round(daily.temperature_2m_max[i])}°</b> / ${Math.round(daily.temperature_2m_min[i])}°</div>
+      </div>`;
+  }
+}
+
+async function runSearch(){
+  const city = document.getElementById('cityInput').value.trim();
+  if(!city){
+    statusEl.textContent = 'Please type a city name first.';
+    statusEl.classList.add('error');
+    return;
+  }
+  statusEl.classList.remove('error');
+  statusEl.textContent = 'Looking that up...';
+  emptyState.style.display = 'none';
+
+  try{
+    const place = await geocode(city);
+    const weather = await getWeather(place.latitude, place.longitude);
+    setHeroImage(place.name);
+    renderCurrent(place, weather);
+    renderHourly(weather);
+    renderDaily(weather);
+    statusEl.textContent = `Showing weather for ${place.name}.`;
+    statsSlide.style.display = 'block';
+    forecastSlide.style.display = 'block';
+  }catch(err){
+    statusEl.textContent = err.message || 'Something went wrong. Try another city.';
+    statusEl.classList.add('error');
+    emptyState.style.display = 'block';
+  }
+}
+
+document.getElementById('searchBtn').addEventListener('click', runSearch);
+document.getElementById('cityInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter') runSearch();
+});
+
+// Load a default city on first visit
+document.getElementById('cityInput').value = 'Vijayawada';
+runSearch();
+</script>
+
+</body>
+</html>
